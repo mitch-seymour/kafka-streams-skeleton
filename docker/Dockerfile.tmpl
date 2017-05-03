@@ -1,0 +1,91 @@
+FROM @@PARENTIMAGE@@:@@PARENTIMAGEVERSION@@
+
+ENV \
+    # Application settings
+    APP_USER="myproject" \
+    APP_GROUP="myproject" \
+    APP_CLEANUP_ON_START=false \
+    APP_KTABLE_BOOTSTRAP=false \
+    DC="dev" \
+    SHARD="dev" \
+
+    # log levels
+    APP_LOG_LEVEL="INFO" \
+    ROOT_LOG_LEVEL="WARN" \
+
+    # Graphite settings
+    GRAPHITE_CARBON_HOST="127.0.0.1" \
+    GRAPHITE_CARBON_PORT=2003 \
+    GRAPHITE_POLL_PERIOD_SECONDS=30 \
+    GRAPHITE_REPORTING_ENABLED=false \
+    STATSD_NAMESPACE="" \
+
+    # Kafka settings
+    KAFKA_STREAMS_APPLICATION_ID="" \
+    KAFKA_STREAMS_BOOTSTRAP_SERVERS="" \
+    KAFKA_STREAMS_METRICS_SAMPLE_WINDOW_MS=30000 \
+    KAFKA_STREAMS_METRICS_NUM_SAMPLES=2 \
+    KAFKA_STREAMS_COMMIT_INTERVAL_MS=30000 \
+    KAFKA_STREAMS_KEY_SERDE="org.apache.kafka.common.serialization.Serdes\$StringSerde" \
+    KAFKA_STREAMS_NUM_THREADS=2 \
+    KAFKA_STREAMS_POLL_MS=100 \
+    KAFKA_STREAMS_REQUEST_TIMEOUT=30000 \
+    KAFKA_STREAMS_STANDBY_REPLICAS=1 \
+    KAFKA_STREAMS_VALUE_SERDE="org.apache.kafka.common.serialization.Serdes\$ByteArraySerde" \
+    KAFKA_STREAMS_ZK_CONNECT="" \
+
+    # State-store settings
+    KAFKA_STREAMS_STATE_DIR="/tmp/kafka-streams" \
+    ROCKSDB_REPORTING_ENABLED=false \
+
+    # Kafka consumer settings
+    KAFKA_CONSUMER_FETCH_MAX_WAIT_MS=500 \
+    KAFKA_CONSUMER_MAX_PARTITION_FETCH_BYTE=1048576 \
+    KAFKA_CONSUMER_MAX_POLL_RECORDS=500 \
+
+    # Kafka producer settings
+    KAFKA_PRODUCER_ACKS=1 \
+    KAFKA_PRODUCER_COMPRESSION_TYPE="snappy" \
+
+    # Zabbix settings
+    ZABBIX_DATA_HOST="" \
+    ZABBIX_HOST="127.0.0.1" \
+    ZABBIX_PORT=10051 \
+    ZABBIX_POLL_PERIOD_SECONDS=30 \
+    ZABBIX_REPORTING_ENABLED=false \
+
+    # Config files
+    APP_CONFIG="/etc/myproject/application.conf" \
+    LOG_CONFIG="/etc/myproject/log4j2.properties" \
+
+    # Java options
+    JAVA_OPTS="-XX:+HeapDumpOnOutOfMemoryError -Xmx4g"
+
+# Install a local rpm
+COPY "files/rpm/myproject*.rpm" /
+RUN yum localinstall -y $(ls /*.rpm | head -1) && \
+    yum clean all
+
+# Copy the config / log4j2 templates
+COPY files/config/application.conf  $APP_CONFIG
+COPY files/config/log4j2.properties $LOG_CONFIG
+
+# Create the user and update file permissions/ownership
+RUN \
+    useradd -ms /bin/bash $APP_USER && \
+    chown $APP_USER:$APP_GROUP -R /etc/myproject
+
+# docker-entrypoint will replace the placeholders in the config files with
+# the values of environment variables
+COPY docker-entrypoint.sh /
+RUN chmod +x /docker-entrypoint.sh
+
+# Every command after this block, as well as interactive sessions, 
+# will be executed as $APP_USER
+USER $APP_USER
+WORKDIR /home/$APP_USER
+
+# If no command is specified when running this container, just drop the user
+# in a bash shell
+CMD ["/bin/bash"]
+ENTRYPOINT ["/docker-entrypoint.sh"]

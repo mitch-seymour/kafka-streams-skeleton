@@ -1,0 +1,12 @@
+JAVA_OPTS="-Dcom.sun.management.jmxremote \
+-Dconfig.file=/etc/myproject/application.conf \
+-Dlog4j.configurationFile=file:///etc/myproject/log4j2.properties \
+-XX:+PrintGCDetails \
+-XX:+PrintGCTimeStamps \
+-XX:+UseGCLogFileRotation \
+-XX:GCLogFileSize=10M \
+-XX:+HeapDumpOnOutOfMemoryError \
+-XX:NumberOfGCLogFiles=30 \
+-Xloggc:/var/log/myproject/gc.log \
+-Xmx4g \
+-verbose:gc"

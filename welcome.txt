@@ -1,0 +1,12 @@
+    Project created in ./myproject
+
+    Things to try once you've started your dev Kafka cluster (broker address defaults to 172.16.21.150:9092)
+
+    $  make unit_tests
+    $  make package
+    $  make docker_image_name
+    $  make docker_image
+    $  make run
+    $  make run_docker
+    $  make attach_docker
+    $  make clean

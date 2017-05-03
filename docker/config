@@ -1,0 +1,10 @@
+#!/bin/bash
+
+GIT_REPO="ghuser/myproject"
+IMAGE_NAME="myproject"
+PARENT_IMAGE="nimmis/java-centos"
+PARENT_IMAGE_TAG="oracle-8-jdk"
+JAVA_VERSION="1.8.0_101"
+OUR_REGISTRY="docker.example.com"
+NAMESPACE="ghuser/myproject"
+IMAGE_TAG="$(cd ../ && ./gradlew printVersion -q)"

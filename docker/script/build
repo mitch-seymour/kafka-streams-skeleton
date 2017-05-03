@@ -1,0 +1,138 @@
+#!/usr/bin/env bash
+
+# How to use: ./script/build <function (ex: build)> <build folder (ex: centos-7)>
+# or for the default "build" function: ./script/build <build folder (ex: centos-7)>
+
+set -e
+
+populateTemplate() {
+    echo "Creating Dockerfile in $targetDir"
+    initializeTemplate
+    echo "" >> Dockerfile
+    echo "LABEL com.example.build.gitrepo='$GIT_REPO' \\" >> Dockerfile
+    echo "      com.example.build.gitsha='$BUILD_SHA' \\" >> Dockerfile
+    echo "      com.example.build.timestamp='$BUILD_TIMESTAMP' \\" >> Dockerfile
+    echo "      com.example.build.user='$BUILD_USER' \\" >> Dockerfile
+    echo "      com.example.build.dependency='$PARENT_IMAGE:$PARENT_IMAGE_TAG'" >> Dockerfile
+}
+
+initializeTemplate() {
+    sed \
+        -e "s,@@PARENTIMAGE@@,$PARENT_IMAGE,g" \
+        -e "s,@@PARENTIMAGEVERSION@@,$PARENT_IMAGE_TAG,g" \
+        -e "s,@@JAVAVERSION@@,$JAVA_VERSION,g" \
+        Dockerfile.tmpl > Dockerfile
+}
+
+build() {
+    populateTemplate
+    echo "Building $DOCKER_IMAGE"
+    docker build -t "$DOCKER_IMAGE" .
+}
+
+release() {
+    if [[ -z "$BUILD_NUMBER" ]]; then
+        echo "Please don't push images locally. Rely on the CI!"
+    else
+        docker push "$DOCKER_IMAGE"
+    fi
+}
+
+clean() {
+    (docker rmi $(docker images | grep "$DOCKER_RM_STRING" | awk "{print \$3}") || true)
+}
+
+getImageName() {
+    echo "$DOCKER_IMAGE"
+}
+
+getUnversionedImageName() {
+    echo "$UNVERSIONED_IMAGE"
+}
+
+getTag(){
+    echo "$DOCKER_BUILD_TAG"
+}
+
+fullRelease() {
+    build
+    release
+    clean
+}
+
+# If only only parameter, use that as the target, and the command is build. Otherwise, first parameter is the command, second is the target
+if [ -z "$2" ]; then
+    targetDir="$1"
+    targetFunc="build"
+else
+    targetDir="$1"
+    targetFunc="$2"
+fi
+cd "$targetDir"
+
+# Load our current env variables into a variable. This is so that we preserve our env after loading the config files
+#quotedEnvironmentVars=""
+#for var in $(printenv); do 
+#    quotedVar="$(echo $var | sed -e 's@\(.*\)=\(.*\)@export \1=\"\2\"@g')"
+#    quotedEnvironmentVars=$(echo -e "$quotedEnvironmentVars\n$quotedVar")
+#done
+
+#  Loading the script files for our docker image
+if [ -f config ]; then
+    source config
+else
+    if [ -f Dockerconfig ]; then
+        source Dockerconfig
+    else
+        echo "Need either a config file, or a Dockerconfig file"
+        exit 1
+    fi
+fi
+
+if [ -z "$BUILD_TIMESTAMP" ]; then
+    BUILD_TIMESTAMP=$(date +%s)
+fi
+
+BUILD_USER=$(whoami)
+
+BUILD_SHA=$(git rev-parse --short HEAD)
+
+# Jenkins will set this variable if it's a jenkins build.
+if [[ -z "$BUILD_NUMBER" ]]; then
+    DOCKER_BUILD_TAG="$IMAGE_TAG-local"
+    # Reload our old environment vars
+    #eval "$quotedEnvironmentVars"
+else
+    DOCKER_BUILD_TAG="$IMAGE_TAG-$BUILD_NUMBER"
+fi
+
+if [[ -z "$GIT_REPO" ]]; then
+    echo "This script requires the GIT_REPO variable to be set in your docker/config file. Please do so and make sure that it matches your project's GH url. This will be used in keeping your parent image up to date."
+    exit 1
+fi
+
+if [[ -z "$PARENT_IMAGE" ]]; then
+    echo "This script requires the PARENT_IMAGE variable to be set in your docker/config file. This will be used in keeping your parent image up to date."
+    exit 1
+fi
+
+if [[ -z "$PARENT_IMAGE_TAG" ]]; then
+    echo "This script requires the PARENT_IMAGE_TAG variable to be set in your docker/config file. This will be used in keeping your parent image up to date."
+    exit 1
+fi
+
+if [[ -z "$IMAGE_NAME" ]]; then
+    echo "This script requires the IMAGE_NAME variable to be set in your docker/config file."
+    exit 1
+fi
+
+if [[ -z "$IMAGE_TAG" ]]; then
+    echo "This script requires the IMAGE_TAG variable to be set in your docker/config file."
+    exit 1
+fi
+
+UNVERSIONED_IMAGE="$NAMESPACE/$IMAGE_NAME"
+DOCKER_IMAGE="$OUR_REGISTRY/$NAMESPACE/$IMAGE_NAME:$DOCKER_BUILD_TAG"
+DOCKER_RM_STRING="$OUR_REGISTRY/$NAMESPACE/$IMAGE_NAME"
+# Run command
+"$targetFunc"

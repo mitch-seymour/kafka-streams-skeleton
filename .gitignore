@@ -1,0 +1,15 @@
+.classpath
+.idea
+.project
+/.gradle/
+/.gradle.properties
+/.settings/
+/build/
+/gradle.properties
+/bin/
+/tmp/
+/workbench.xmi
+/docker/files/rpm/*
+/docker/Dockerfile
+/docker/script/dockerbuild
+.DS_Store
