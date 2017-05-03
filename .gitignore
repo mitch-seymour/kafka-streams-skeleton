@@ -9,7 +9,6 @@
 /bin/
 /tmp/
 /workbench.xmi
-/docker/files/rpm/*.rpm
 /docker/Dockerfile
 /docker/script/dockerbuild
 .DS_Store
