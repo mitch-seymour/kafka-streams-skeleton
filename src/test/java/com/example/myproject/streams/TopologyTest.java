@@ -54,13 +54,13 @@ public abstract class TopologyTest {
         }
 
         public MockProcessorSupplier(long scheduleInterval) {
-            this.processed = new ArrayList();
-            this.punctuated = new ArrayList();
+            this.processed = new ArrayList<>();
+            this.punctuated = new ArrayList<>();
             this.scheduleInterval = scheduleInterval;
         }
 
         public Processor<K, V> get() {
-            return new MockProcessorSupplier.MockProcessor();
+            return new MockProcessorSupplier<K, V>.MockProcessor();
         }
 
         public void checkAndClearProcessResult(KeyValue... expected) {
@@ -102,14 +102,14 @@ public abstract class TopologyTest {
             }
 
             public void process(K key, V value) {
-                MockProcessorSupplier.this.processed.add(new KeyValue(key, value));
+                MockProcessorSupplier.this.processed.add(new KeyValue<>(key, value));
             }
 
             public void punctuate(long streamTime) {
                 Assert.assertEquals(streamTime, this.context().timestamp());
                 Assert.assertEquals(-1L, (long) this.context().partition());
                 Assert.assertEquals(-1L, this.context().offset());
-                MockProcessorSupplier.this.punctuated.add(Long.valueOf(streamTime));
+                MockProcessorSupplier.this.punctuated.add(streamTime);
             }
         }
     }
@@ -139,6 +139,7 @@ public abstract class TopologyTest {
         return getKStreamTestDriver(createStateDir());
     }
 
+    @SuppressWarnings({"unchecked"})
     protected KStreamTestDriver getKStreamTestDriver(File stateDir) {
         KStreamBuilder builder = stream.getBuilder();
         builder.stream(stream.getDestinationTopic()).process(processor);

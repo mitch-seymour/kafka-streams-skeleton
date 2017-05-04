@@ -217,50 +217,6 @@ public abstract class StreamsApp extends App {
     }
 
     /**
-     * If a state store has not been initialized when streaming a KTable, force initialization. To understand why
-     * this is necessary, please see KAFKA-4113
-     * @param sourceTopic
-     * @param keyDeserializer
-     * @param valueDeserializer
-     */
-    public void forceKTableBootstrap(String sourceTopic, Deserializer keyDeserializer, Deserializer valueDeserializer) {
-        try {
-            Map<String, Object> config = getStreamsConfig();
-            String groupId = config.get(APPLICATION_ID_CONFIG).toString();
-            config.put(GROUP_ID_CONFIG, groupId);
-            config.put(ENABLE_AUTO_COMMIT_CONFIG, true);
-            config.put(MAX_POLL_RECORDS_CONFIG, 1);
-            KafkaConsumer<String, String> consumer = new KafkaConsumer<>(config, keyDeserializer, valueDeserializer);
-            ConsumerRebalanceListener listener = new ConsumerRebalanceListener() {
-                public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
-                }
-
-                public void onPartitionsAssigned(Collection<TopicPartition> partitions) {
-                    List<TopicPartition> unInitialized = new ArrayList<>();
-                    for (TopicPartition tp : partitions) {
-                        OffsetAndMetadata offsetAndMetaData = consumer.committed(tp);
-                        if (offsetAndMetaData == null) {
-                            unInitialized.add(tp);
-                        }
-                    }
-                    if (unInitialized.size() > 0) {
-                        log.info("Bootstrapping {} state stores for topic: {}", unInitialized.size(), sourceTopic);
-                        consumer.seekToBeginning(unInitialized);
-                    } else {
-                        log.info("{} state stores have already been bootstrapped for topic: {}", partitions.size(), sourceTopic);
-                    }
-                }
-            };
-            consumer.subscribe(Collections.singletonList(sourceTopic), listener);
-            consumer.poll(1000L);
-            consumer.close();
-        } catch (InconsistentGroupProtocolException e) {
-            log.info("Inconsistent group protocol while bootstrapping KTable. Restarting");
-            restart();
-        }
-    }
-
-    /**
      * Restart the application
      */
     @Override
